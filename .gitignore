@@ -1,2 +1,5 @@
-team-00/.metadata/
-team-00/target/
+team-00/.metadata
+team-00/target
+/team-00/.metadata
+/team-00/.settings
+/team-00/target
