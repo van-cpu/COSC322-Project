@@ -182,7 +182,10 @@ public class COSC322Test extends GamePlayer{
             getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
 						printGameBoard();
-        }
+						makeBestMove();
+        }else{
+					return false;
+				}
 
         return true;   	
     }
@@ -205,7 +208,7 @@ public class COSC322Test extends GamePlayer{
 			System.out.println();
 		}
 
-		private void updateGameBoard(){
+		private void updateGameBoard(Map<String, Object> msgDetails){
 			if(gameBoard == null){
 				System.out.println("An Error Has Occurred: Game Board is Null");
 			}
