@@ -18,7 +18,7 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * An example illustrating how to implement a GamePlayer
  * @author Yong Gao (yong.gao@ubc.ca)
  * Jan 5, 2021
- *
+ * Run on cmd line with: mvn exec:java -Dexec.mainClass="ubc.cosc322.COSC322Test" -Dexec.args="cosc322 cosc322"
  */
 public class COSC322Test extends GamePlayer{
 
@@ -112,6 +112,8 @@ public class COSC322Test extends GamePlayer{
 
         if (messageType.equals(GameMessage.GAME_ACTION_START)) {
 						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
+
+						getGameGUI().updateGameState(msgDetails);
 						// If we have the black queen, we make move
 						if(!isWhiteQueen){
 							makeBestMove();
@@ -202,6 +204,19 @@ public class COSC322Test extends GamePlayer{
 			}
 			System.out.println("Current Game Board State is:");
 			// Printing the board state in reverse order of int[][] gameBoard
+			/*
+						Current Game Board State is:
+			[0, 0, 0, 1, 0, 0, 1, 0, 0, 0]
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			[2, 0, 0, 0, 0, 0, 0, 0, 0, 2]
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			[0, 0, 0, 2, 0, 0, 2, 0, 0, 0]
+			*/
 			for(int i = 9; i >= 0; i--){
 				System.out.println(Arrays.toString(gameBoard[i]));
 			}
