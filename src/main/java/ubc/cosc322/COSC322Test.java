@@ -181,7 +181,7 @@ public class COSC322Test extends GamePlayer{
         } else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
             getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
-						printBoardState();
+						printGameBoard();
         }
 
         return true;   	
@@ -192,7 +192,7 @@ public class COSC322Test extends GamePlayer{
 			// TODO
 		}
 
-		private void printBoardState(){
+		private void printGameBoard(){
 			if(this.gameBoard == null){
 				System.out.println("Game Board State is null");
 				return;
