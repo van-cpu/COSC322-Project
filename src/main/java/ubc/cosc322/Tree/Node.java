@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a node in the Search Tree for the Game of Amazons.
+ * Represents a node in the Search Tree for the Game of Amazons. Works with MonteCarloAlphaPrune
  */
 class Node {
     // The move that led to this state: {{qOldY, qOldX}, {qNewY, qNewX}, {arrowY, arrowX}}
