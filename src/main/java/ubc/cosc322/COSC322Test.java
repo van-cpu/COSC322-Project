@@ -3,11 +3,13 @@ package ubc.cosc322;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import java.util.Map;
 
 import sfs2x.client.entities.Room;
+import ubc.cosc322.Tree.MonteCarloAlphaBeta;
 import ygraph.ai.smartfox.games.BaseGameGUI;
 import ygraph.ai.smartfox.games.GameClient;
 import ygraph.ai.smartfox.games.GameMessage;
@@ -194,7 +196,39 @@ public class COSC322Test extends GamePlayer{
     
 		/* This method is to be implemented */
 		private void makeBestMove(){
-			// TODO
+			System.out.println("> Initiating Hybrid Search for " + (isWhiteQueen ? "White" : "Black") + "...");
+
+			// 1. Instantiate the hybrid search engine
+			MonteCarloAlphaBeta searchEngine = new MonteCarloAlphaBeta();
+			
+			// 2. Perform the hybrid search 
+			int[][] bestMove = searchEngine.performSearch(isWhiteQueen, this.gameBoard);
+
+			if (bestMove != null) {
+				// 3. Convert 0-based indices to 1-based server indices
+				// Result: [0]=Old, [1]=New, [2]=Arrow
+				ArrayList<Integer> queenCurr = new ArrayList<>(Arrays.asList(bestMove[0][0] + 1, bestMove[0][1] + 1));
+				ArrayList<Integer> queenNext = new ArrayList<>(Arrays.asList(bestMove[1][0] + 1, bestMove[1][1] + 1));
+				ArrayList<Integer> arrowPos = new ArrayList<>(Arrays.asList(bestMove[2][0] + 1, bestMove[2][1] + 1));
+
+				// 4. Wrap coordinates in the required message structure
+				Map<String, Object> moveMessage = new HashMap<>();
+				moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, queenCurr);
+				moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, queenNext);
+				moveMessage.put(AmazonsGameMessage.ARROW_POS, arrowPos);
+
+				// 5. Commit move: Send to server, update GUI, and sync local gameBoard
+				// Using getGameClient() and getGameGUI() as per your class implementation
+				getGameClient().sendMoveMessage(moveMessage);
+				getGameGUI().updateGameState(moveMessage);
+				
+				// Using your defined method: updateGameBoard()
+				updateGameBoard(moveMessage); 
+
+				System.out.println("> Move successfully committed to server.");
+			} else {
+				System.out.println("> No valid moves remaining.");
+			}
 		}
 
 		private void printGameBoard(){
