@@ -2,317 +2,249 @@
 package ubc.cosc322;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-
 import java.util.Map;
 
 import sfs2x.client.entities.Room;
-import ubc.cosc322.Tree.MonteCarloAlphaBeta;
+import ubc.cosc322.engine.AmazonPlayer;
+import ubc.cosc322.engine.Board;
+import ubc.cosc322.engine.Board.Tile;
+import ubc.cosc322.engine.Move;
+import ubc.cosc322.engine.TerritoryAI;
 import ygraph.ai.smartfox.games.BaseGameGUI;
 import ygraph.ai.smartfox.games.GameClient;
 import ygraph.ai.smartfox.games.GameMessage;
 import ygraph.ai.smartfox.games.GamePlayer;
 import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
 
-/**
- * An example illustrating how to implement a GamePlayer
- * @author Yong Gao (yong.gao@ubc.ca)
- * Jan 5, 2021
- * Run on cmd line with: mvn exec:java -Dexec.mainClass="ubc.cosc322.COSC322Test" -Dexec.args="cosc322 cosc322"
- */
-public class COSC322Test extends GamePlayer{
+public class COSC322Test extends GamePlayer {
 
-    private GameClient gameClient = null; 
-    private BaseGameGUI gamegui = null;
-	
-    private String userName = null;
-    private String passwd = null;
+	private GameClient gameClient = null;
+	private BaseGameGUI gamegui = null;
 
-		/* Instance variables new */
-		private boolean isWhiteQueen;
-		private int[][] gameBoard;
-	
-    /**
-     * The main method
-     * @param args for name and passwd (current, any string would work)
-     */
-    public static void main(String[] args) {				 
-    	COSC322Test player = new COSC322Test(args[0], args[1]);
-    	
-    	if(player.getGameGUI() == null) {
-    		player.Go();
-    	}
-    	else {
-    		BaseGameGUI.sys_setup();
-            java.awt.EventQueue.invokeLater(new Runnable() {
-                public void run() {
-                	player.Go();
-                }
-            });
-    	}
-    }
-	
-    /**
-     * Any name and passwd 
-     * @param userName
-      * @param passwd
-     */
-    public COSC322Test(String userName, String passwd) {
-    	this.userName = userName;
-    	this.passwd = passwd;
-    	
-    	//To make a GUI-based player, create an instance of BaseGameGUI
-    	//and implement the method getGameGUI() accordingly
-    	this.gamegui = new BaseGameGUI(this);
-    	
-    }
- 
+	private String userName = null;
+	private String passwd = null;
 
+	private Board board = null;
+	private boolean playAsBlack = false;
+	private boolean myTurn = false;
 
-    @Override
-    public void onLogin() {
-//    	System.out.println("Congratualations!!! "
-//    			+ "I am called because the server indicated that the login is successfully");
-//    	System.out.println("The next step is to find a room and join it: "
-//    			+ "the gameClient instance created in my constructor knows how!"); 
-    	
-    	// Implement the room list
-    	System.out.println("The available room/rooms is/are: ");
-    	List<Room> rooms = gameClient.getRoomList();
-    	for(Room room : rooms) {
-    		System.out.println("- " + room.getName());
-    	}
-    	
-    	//Joining a room
-    	// if(rooms != null && !rooms.isEmpty()) {
-    	// 	String roomName = rooms.get(0).getName();
-    	// 	System.out.println("Joining room: " + roomName);
-    	// 	gameClient.joinRoom(roomName);
-    	// }else {
-    	// 	System.out.println("No room available.");
-    	// }
-	    userName = gameClient.getUserName(); 
-	    
-	    
-	    if(gamegui != null) {
-	        gamegui.setRoomInformation(gameClient.getRoomList());
-	    }
-    }
+	private final AmazonPlayer ai = new TerritoryAI(1);
 
-    @Override
-    public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
-				//This method will be called by the GameClient when it receives a game-related message
-				//from the server.
-		
-				//For a detailed description of the message types and format, 
-				//see the method GamePlayer.handleGameMessage() in the game-client-api document. 
-				System.out.print("Received game message - ");
-        System.out.print("Type: " + messageType);
-        System.out.print(", Details: " + msgDetails.toString() + "\n");
+	public static void main(String[] args) {
+		COSC322Test player = new COSC322Test(args[0], args[1]);
 
-        if (messageType.equals(GameMessage.GAME_ACTION_START)) {
-						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
+		if (player.getGameGUI() == null) {
+			player.Go();
+		} else {
+			BaseGameGUI.sys_setup();
+			java.awt.EventQueue.invokeLater(player::Go);
+		}
+	}
 
-						getGameGUI().updateGameState(msgDetails);
-						// If we have the black queen, we make move
-						if(!isWhiteQueen){
-							makeBestMove();
-						}
-        } else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
-            ArrayList<Integer> initialBoardArray = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE);
-            // The gameBoard is 10x10
-						this.gameBoard = new int[10][10];
-						/*
-						0 for Empty
-						1 White Queen
-						2 Black Queen
-						3 Arrow
+	public COSC322Test(String userName, String passwd) {
+		this.userName = userName;
+		this.passwd = passwd;
+		this.gamegui = new BaseGameGUI(this);
+	}
 
-						The array received is:
-						Received game message - Type: cosc322.game-state.board, Details: 
-						{game-state=
-						[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0-10
-						0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 11-21
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22-32
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33-43
-						0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 44-54
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55-65
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 66-76
-						0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 77-87
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 88-98
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99-109
-						0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0]} 110-120
-						(total 121 entries)
+	@Override
+	public void onLogin() {
+		System.out.println("The available room/rooms is/are: ");
+		List<Room> rooms = gameClient.getRoomList();
+		for (Room room : rooms) {
+			System.out.println("- " + room.getName());
+		}
 
-						Initial Board from warmup 2 run is: - 0 indexed
-						Black Queens (3, 0), (0, 3), (0, 6), (3, 9)
-						White Queens (6, 0), (9, 3), (9, 6), (6, 9)
-						
-						Top row and the leftest column are paddings 
-						2 (black) at 15, 18, 45, 54
-						1 (white) at 78, 87, 114, 117
-						(i + 1) * 11 + (j + 1)
-						Black Queen(3, 0) = (3 + 1) * 11 + (0 + 1) = 45
-						Black Queen(0, 3) = (0 + 1) * 11 + (3 + 1) = 15
-						Black Queen(0, 6) = (0 + 1) * 11 + (6 + 1) = 18
-						Black Queen(3, 9) = (3 + 1) * 11 + (9 + 1) = 54
+		if (rooms != null && !rooms.isEmpty()) {
+			String roomName = rooms.get(0).getName();
+			System.out.println("Joining room: " + roomName);
+			gameClient.joinRoom(roomName);
+		} else {
+			System.out.println("No room available.");
+		}
 
-						The above verified that 2 stands for Black Queen
-						Also, 1 for White Queen, and how translation of the
-						msgDetails of AmazonsGameMessage
-						*/
-						for(int i = 0; i < 10; i++){
-							for(int j = 0; j < 10; j++){
-								int index = (i + 1) * 11 + (j + 1);
-								gameBoard[i][j] = initialBoardArray.get(index);
-							}
-						}
+		userName = gameClient.getUserName();
 
-						// Print the game board state
-						printGameBoard();
+		if (gamegui != null) {
+			gamegui.setRoomInformation(gameClient.getRoomList());
+		}
+	}
 
-						// Present the initialBoardArray in the GUI
-						getGameGUI().setGameState(initialBoardArray);
+	@Override
+	public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
+		System.out.print("Received game message - ");
+		System.out.print("Type: " + messageType);
+		System.out.print(", Details: " + msgDetails + "\n");
 
-						if(isWhiteQueen){
-								System.out.println("Playing as White Queen");
-						}else{
-								System.out.println("Playing as Black Queen");
-						}
-
-        } else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
-            getGameGUI().updateGameState(msgDetails);
-						updateGameBoard(msgDetails);
-						printGameBoard();
-						makeBestMove();
-        }else{
-					return false;
+		if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
+			ArrayList<Integer> boardState = extractIntegerList(msgDetails.get(AmazonsGameMessage.GAME_STATE));
+			if (boardState != null) {
+				board = parseBoardState(boardState);
+				if (gamegui != null) {
+					gamegui.setGameState(boardState);
 				}
+			}
+			return true;
+		}
 
-        return true;   	
-    }
-    
-		/* This method is to be implemented */
-		private void makeBestMove(){
-			System.out.println("> Initiating Hybrid Search for " + (isWhiteQueen ? "White" : "Black") + "...");
+		if (messageType.equals(GameMessage.GAME_ACTION_START)) {
+			String blackPlayer = (String) msgDetails.get(AmazonsGameMessage.PLAYER_BLACK);
+			String whitePlayer = (String) msgDetails.get(AmazonsGameMessage.PLAYER_WHITE);
+			System.out.println("Black: " + blackPlayer + ", White: " + whitePlayer);
 
-			// 1. Instantiate the hybrid search engine
-			MonteCarloAlphaBeta searchEngine = new MonteCarloAlphaBeta();
-			
-			// 2. Perform the hybrid search 
-			int[][] bestMove = searchEngine.performSearch(isWhiteQueen, this.gameBoard);
+			playAsBlack = userName.equals(blackPlayer);
+			myTurn = playAsBlack;
 
-			if (bestMove != null) {
-				// 3. Convert 0-based indices to 1-based server indices
-				// Result: [0]=Old, [1]=New, [2]=Arrow
-				ArrayList<Integer> queenCurr = new ArrayList<>(Arrays.asList(bestMove[0][0] + 1, bestMove[0][1] + 1));
-				ArrayList<Integer> queenNext = new ArrayList<>(Arrays.asList(bestMove[1][0] + 1, bestMove[1][1] + 1));
-				ArrayList<Integer> arrowPos = new ArrayList<>(Arrays.asList(bestMove[2][0] + 1, bestMove[2][1] + 1));
+			if (gamegui != null) {
+				gamegui.updateGameState(msgDetails);
+			}
 
-				// 4. Wrap coordinates in the required message structure
-				Map<String, Object> moveMessage = new HashMap<>();
-				moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, queenCurr);
-				moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, queenNext);
-				moveMessage.put(AmazonsGameMessage.ARROW_POS, arrowPos);
+			if (myTurn) {
+				scheduleMove();
+			}
+			return true;
+		}
 
-				// 5. Commit move: Send to server, update GUI, and sync local gameBoard
-				// Using getGameClient() and getGameGUI() as per your class implementation
-				getGameClient().sendMoveMessage(moveMessage);
-				getGameGUI().updateGameState(moveMessage);
-				
-				// Using your defined method: updateGameBoard()
-				updateGameBoard(moveMessage); 
+		if (messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
+			ArrayList<Integer> queenCurrent = extractIntegerList(msgDetails.get(AmazonsGameMessage.QUEEN_POS_CURR));
+			ArrayList<Integer> queenNext = extractIntegerList(msgDetails.get(AmazonsGameMessage.QUEEN_POS_NEXT));
+			ArrayList<Integer> arrowPosition = extractIntegerList(msgDetails.get(AmazonsGameMessage.ARROW_POS));
 
-				System.out.println("> Move successfully committed to server.");
-			} else {
-				System.out.println("> No valid moves remaining.");
+			if (board != null && queenCurrent != null && queenNext != null && arrowPosition != null) {
+				Move move = new Move(
+					queenCurrent.get(0) - 1,
+					queenCurrent.get(1) - 1,
+					queenNext.get(0) - 1,
+					queenNext.get(1) - 1,
+					arrowPosition.get(0) - 1,
+					arrowPosition.get(1) - 1
+				);
+
+				boolean wasMyTurn = myTurn;
+				myTurn = !myTurn;
+
+				if (!wasMyTurn) {
+					board.applyMove(move, !playAsBlack);
+					if (gamegui != null) {
+						gamegui.updateGameState(msgDetails);
+					}
+					scheduleMove();
+				} else if (gamegui != null) {
+					gamegui.updateGameState(msgDetails);
+				}
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	private static Board parseBoardState(ArrayList<Integer> state) {
+		Board parsed = new Board();
+
+		for (int row = 0; row < Board.SIZE; row++) {
+			for (int col = 0; col < Board.SIZE; col++) {
+				parsed.set(row, col, Tile.FREE);
 			}
 		}
 
-		private void printGameBoard(){
-			if(this.gameBoard == null){
-				System.out.println("Game Board State is null");
+		for (int row = 1; row <= Board.SIZE; row++) {
+			for (int col = 1; col <= Board.SIZE; col++) {
+				int value = state.get(11 * row + col);
+				Tile tile;
+				switch (value) {
+					case 1:
+						tile = Tile.WHITE_QUEEN;
+						break;
+					case 2:
+						tile = Tile.BLACK_QUEEN;
+						break;
+					case 3:
+						tile = Tile.BLACK_ARROW;
+						break;
+					default:
+						tile = Tile.FREE;
+						break;
+				}
+				parsed.set(row - 1, col - 1, tile);
+			}
+		}
+
+		return parsed;
+	}
+
+	private void scheduleMove() {
+		final Board snapshot = new Board(board);
+		final boolean moveAsBlack = playAsBlack;
+
+		Thread worker = new Thread(() -> {
+			Move chosenMove = ai.chooseMove(snapshot, moveAsBlack);
+			if (chosenMove == null) {
 				return;
 			}
-			System.out.println("Current Game Board State is:");
-			// Printing the board state in reverse order of int[][] gameBoard
-			/*
-						Current Game Board State is:
-			[0, 0, 0, 1, 0, 0, 1, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[2, 0, 0, 0, 0, 0, 0, 0, 0, 2]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 2, 0, 0, 2, 0, 0, 0]
-			*/
-			for(int i = 9; i >= 0; i--){
-				System.out.println(Arrays.toString(gameBoard[i]));
+
+			board.applyMove(chosenMove, moveAsBlack);
+
+			ArrayList<Integer> queenCurrent = toServerPosition(chosenMove.queenRow, chosenMove.queenCol);
+			ArrayList<Integer> queenNext = toServerPosition(chosenMove.moveRow, chosenMove.moveCol);
+			ArrayList<Integer> arrowPosition = toServerPosition(chosenMove.arrowRow, chosenMove.arrowCol);
+
+			Map<String, Object> moveMessage = new HashMap<>();
+			moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, queenCurrent);
+			moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, queenNext);
+			moveMessage.put(AmazonsGameMessage.ARROW_POS, arrowPosition);
+			gameClient.sendMoveMessage(moveMessage);
+		}, "ai-thread");
+
+		worker.setDaemon(true);
+		worker.start();
+	}
+
+	private static ArrayList<Integer> toServerPosition(int row, int col) {
+		ArrayList<Integer> position = new ArrayList<>();
+		position.add(row + 1);
+		position.add(col + 1);
+		return position;
+	}
+
+	private static ArrayList<Integer> extractIntegerList(Object value) {
+		if (!(value instanceof List<?>)) {
+			return null;
+		}
+
+		ArrayList<Integer> numbers = new ArrayList<>();
+		for (Object item : (List<?>) value) {
+			if (item instanceof Integer) {
+				numbers.add((Integer) item);
+			} else if (item instanceof Number) {
+				numbers.add(((Number) item).intValue());
+			} else {
+				return null;
 			}
-			System.out.println();
 		}
 
-		private void updateGameBoard(Map<String, Object> msgDetails){
-			if(gameBoard == null){
-				System.out.println("An Error Has Occurred: Game Board is Null");
-			}
-			
-			// Extract QUEEN_POS_CURR, QUEEN_POS_NEXT, ARROW_POS from msgDetails and convert to ArrayList<Integer>
-			ArrayList<Integer> queenOldPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_CURR);
-			ArrayList<Integer> queenNewPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_NEXT);
-			ArrayList<Integer> arrow = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.ARROW_POS);
-			System.out.println(queenOldPos.toString());
-			System.out.println(queenNewPos.toString());
+		return numbers;
+	}
 
-			// The position indices for game server and GUI is 1-based, from 1 to 10, we need to convert to 0 to 9
-			// Position get 1 returns X index, and get 0 returns Y index, all subtract 1 to convert to 0-base
-			int oldX = queenOldPos.get(1) - 1;
-			int oldY = queenOldPos.get(0) - 1;
-			int newX = queenNewPos.get(1) - 1;
-			int newY = queenNewPos.get(0) - 1;
-			int arrowX = arrow.get(1) - 1;
-			int arrowY = arrow.get(0) - 1;
+	@Override
+	public String userName() {
+		return userName;
+	}
 
-			// get the value of the queen (black or white) at the old position
-			int movingQueen = gameBoard[oldY][oldX];
+	@Override
+	public GameClient getGameClient() {
+		return this.gameClient;
+	}
 
-			// Set the newY,newX for the movingQueen value
-			gameBoard[newY][newX] = movingQueen;
-			// Clear the Queen value at the old indices because the queen has moved, empty field has value 0
-			gameBoard[oldY][oldX] = 0;
+	@Override
+	public BaseGameGUI getGameGUI() {
+		return this.gamegui;
+	}
 
-			// Place the arrow, arrow has value of 3 as always
-			gameBoard[arrowY][arrowX] = 3;
-		}
-    
-    @Override
-    public String userName() {
-    	return userName;
-    }
-
-		@Override
-		public GameClient getGameClient() {
-			// TODO Auto-generated method stub
-			return this.gameClient;
-		}
-
-		@Override
-		public BaseGameGUI getGameGUI() {
-			// TODO Auto-generated method stub
-			// Updated this to return the gamegui
-			return  this.gamegui;
-		}
-
-		@Override
-		public void connect() {
-			// TODO Auto-generated method stub
-				gameClient = new GameClient(userName, passwd, this);			
-		}
-
- 
-}//end of class
+	@Override
+	public void connect() {
+		gameClient = new GameClient(userName, passwd, this);
+	}
+}
