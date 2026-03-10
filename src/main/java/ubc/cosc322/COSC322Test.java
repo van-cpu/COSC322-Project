@@ -40,7 +40,7 @@ public class COSC322Test extends GamePlayer{
      */
     public static void main(String[] args) {				 
     	COSC322Test player = new COSC322Test(args[0], args[1]);
-    	
+    	player.connect();
     	if(player.getGameGUI() == null) {
     		player.Go();
     	}
@@ -287,7 +287,7 @@ public class COSC322Test extends GamePlayer{
 
 		
 		public void onRoomListUpdate() {
-				System.out.println(">>> [DEBUG] Room list updated by server.");
+				System.out.println(">>> [CRITICAL] onRoomListUpdate() was triggered by the server!");
 				List<Room> rooms = gameClient.getRoomList();
 				for (Room r : rooms) {
 						if (r.getName().equals("Okanagan Lake")) {
