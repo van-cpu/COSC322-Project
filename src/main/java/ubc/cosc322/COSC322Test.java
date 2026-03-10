@@ -284,6 +284,23 @@ public class COSC322Test extends GamePlayer{
 			// Place the arrow, arrow has value of 3 as always
 			gameBoard[arrowY][arrowX] = 3;
 		}
+
+		
+		public void onRoomListUpdate() {
+				System.out.println(">>> [DEBUG] Room list updated by server.");
+				List<Room> rooms = gameClient.getRoomList();
+				for (Room r : rooms) {
+						if (r.getName().equals("Okanagan Lake")) {
+								System.out.println(">>> [DEBUG] Okanagan Lake current users: " + r.getUserList().size());
+								
+								// If the room now has 1 user and we aren't in it yet, join!
+								if (r.getUserList().size() == 1 && !r.isJoined()) {
+										System.out.println(">>> [SYNC] Host detected. Joining Okanagan Lake...");
+										gameClient.joinRoom(r.getName());
+								}
+						}
+				}
+		}
     
     @Override
     public String userName() {
