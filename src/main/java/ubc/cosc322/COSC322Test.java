@@ -83,6 +83,7 @@ public class COSC322Test extends GamePlayer{
     	List<Room> rooms = gameClient.getRoomList();
     	for(Room room : rooms) {
     		System.out.println("- " + room.getName());
+				if (room != null) { System.out.println("- " + room.getName());}
     	}
     	
     	//Joining a room
@@ -115,9 +116,10 @@ public class COSC322Test extends GamePlayer{
         if (messageType.equals(GameMessage.GAME_ACTION_START)) {
 						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
 
-						getGameGUI().updateGameState(msgDetails);
+						// getGameGUI().updateGameState(msgDetails);
 						// If we have the black queen, we make move
 						if(!isWhiteQueen){
+							System.out.println(">>> [COSC322] Black starts. Calculating first move...");
 							makeBestMove();
 						}
         } else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {

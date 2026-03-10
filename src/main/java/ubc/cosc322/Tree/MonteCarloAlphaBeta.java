@@ -29,39 +29,38 @@ public class MonteCarloAlphaBeta {
     return generatePossibleMoves(isWhiteQueen, gameBoard).isEmpty();
   }
 
-  public int[][] performSearch(boolean isWhiteQueen, int[][] gameBoard) {
+  // Inside MonteCarloAlphaBeta.java
 
-    // Check if the current player has any moves at all
+public int[][] performSearch(boolean isWhiteQueen, int[][] gameBoard) {
     if (hasNoValidMoves(isWhiteQueen, gameBoard)) {
-      System.out.println("> NO VALID MOVES: Current player is blocked.");
-      return null; 
+        return null; 
     }
 
-    // DETECTOR: If players are separated, use Alpha-Beta for perfect endgame play
-    if (isPlayersSeparated(gameBoard)) {
-      System.out.println("> SEPARATION DETECTED: Switching to Alpha-Beta Solver.");
-      int[][] abMove = alphaBetaSearch(gameBoard, 3, Integer.MIN_VALUE, Integer.MAX_VALUE, true, isWhiteQueen);
-      printMoveDetails("Alpha-Beta", abMove);
-      return abMove;
+    // NEW: Count arrows to determine phase
+    int arrowCount = 0;
+    for(int[] row : gameBoard) {
+        for(int cell : row) if(cell == 3) arrowCount++;
     }
 
-    // MID-GAME: MCTS
-    System.out.println("> MID-GAME: Running Monte Carlo Tree Search.");
+    // Only switch to Alpha-Beta if the game is in the "end" phase (many arrows)
+    if (arrowCount >= 45 && isPlayersSeparated(gameBoard)) {
+        System.out.println("> SEPARATION DETECTED: Switching to Alpha-Beta Solver.");
+        // Reduce depth to 2 to ensure we don't timeout
+        int[][] abMove = alphaBetaSearch(gameBoard, 2, Integer.MIN_VALUE, Integer.MAX_VALUE, true, isWhiteQueen);
+        printMoveDetails("Alpha-Beta", abMove);
+        return abMove;
+    }
 
-    // Initiate MCTS
+    // MID-GAME/OPENING: Use MCTS
+    System.out.println("> Running MCTS.");
     Node root = new Node(null, null, gameBoard, isWhiteQueen);
-
     for (int i = 0; i < SIMULATION_LIMIT; i++) {
-      Node node = selectNode(root);
-      if (!node.isFullyExpanded){
-        node = expandNode(node);
-      }
-      int result = simulatePlayout(node);
-      backpropagateResult(node, result);
+        Node node = selectNode(root);
+        if (!node.isFullyExpanded) node = expandNode(node);
+        int result = simulatePlayout(node);
+        backpropagateResult(node, result);
     }
-    int[][] mctsMove = getBestMoveFromNode(root);
-    printMoveDetails("MCTS", mctsMove);
-    return mctsMove;
+    return getBestMoveFromNode(root);
   }
 
   // Print method for performSearch() to help debug
