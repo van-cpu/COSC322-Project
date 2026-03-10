@@ -25,15 +25,34 @@ public class COSC322Test extends GamePlayer {
 
 	private String userName = null;
 	private String passwd = null;
+	private final boolean guiMode;
+	private final String requestedRoomName;
 
 	private Board board = null;
 	private boolean playAsBlack = false;
 	private boolean myTurn = false;
+	private boolean roomJoinRequested = false;
+	private long lastRoomRefreshMs = 0L;
+
+	private static final long ROOM_REFRESH_DEBOUNCE_MS = 1000L;
 
 	private final AmazonPlayer ai = new TerritoryAI(1);
 
 	public static void main(String[] args) {
-		COSC322Test player = new COSC322Test(args[0], args[1]);
+		if (args.length < 2) {
+			throw new IllegalArgumentException("Expected username and password arguments.");
+		}
+
+		boolean useGui = args.length > 2 && "--gui".equalsIgnoreCase(args[2]);
+		String roomName = null;
+		if (!useGui) {
+			if (args.length < 3) {
+				throw new IllegalArgumentException("Non-GUI mode requires a room name as the third argument.");
+			}
+			roomName = args[2];
+		}
+
+		COSC322Test player = new COSC322Test(args[0], args[1], useGui, roomName);
 
 		if (player.getGameGUI() == null) {
 			player.Go();
@@ -43,37 +62,45 @@ public class COSC322Test extends GamePlayer {
 		}
 	}
 
-	public COSC322Test(String userName, String passwd) {
+	public COSC322Test(String userName, String passwd, boolean useGui, String requestedRoomName) {
 		this.userName = userName;
 		this.passwd = passwd;
-		this.gamegui = new BaseGameGUI(this);
+		this.guiMode = useGui;
+		this.requestedRoomName = requestedRoomName;
+		this.gamegui = useGui ? new BaseGameGUI(this) : null;
 	}
 
 	@Override
 	public void onLogin() {
+		userName = gameClient.getUserName();
+		roomJoinRequested = false;
 		System.out.println("The available room/rooms is/are: ");
 		List<Room> rooms = gameClient.getRoomList();
-		for (Room room : rooms) {
-			System.out.println("- " + room.getName());
-		}
+		refreshRoomInformation(rooms, false);
 
-		if (rooms != null && !rooms.isEmpty()) {
-			String roomName = rooms.get(0).getName();
-			System.out.println("Joining room: " + roomName);
-			gameClient.joinRoom(roomName);
-		} else {
+		if (rooms == null || rooms.isEmpty()) {
 			System.out.println("No room available.");
+			return;
 		}
 
-		userName = gameClient.getUserName();
-
-		if (gamegui != null) {
-			gamegui.setRoomInformation(gameClient.getRoomList());
+		for (Room room : rooms) {
+			System.out.println("- " + room.getName() + " (" + room.getUserCount() + "/" + room.getMaxUsers() + ")");
 		}
+
+		if (guiMode) {
+			System.out.println("GUI mode: select a room once in the room panel to join.");
+			return;
+		}
+
+		joinRoomOnce(requestedRoomName, rooms);
 	}
 
 	@Override
 	public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
+		if (isRoomMetadataMessage(messageType)) {
+			refreshRoomInformation(gameClient.getRoomList(), true);
+		}
+
 		System.out.print("Received game message - ");
 		System.out.print("Type: " + messageType);
 		System.out.print(", Details: " + msgDetails + "\n");
@@ -96,10 +123,6 @@ public class COSC322Test extends GamePlayer {
 
 			playAsBlack = userName.equals(blackPlayer);
 			myTurn = playAsBlack;
-
-			if (gamegui != null) {
-				gamegui.updateGameState(msgDetails);
-			}
 
 			if (myTurn) {
 				scheduleMove();
@@ -139,6 +162,64 @@ public class COSC322Test extends GamePlayer {
 		}
 
 		return false;
+	}
+
+	private synchronized boolean joinRoomOnce(String roomName, List<Room> rooms) {
+		if (roomJoinRequested) {
+			System.out.println("Ignoring duplicate join request.");
+			return false;
+		}
+
+		if (roomName == null || roomName.trim().isEmpty()) {
+			System.out.println("No target room provided for joining.");
+			return false;
+		}
+
+		if (rooms != null) {
+			Room target = findRoomByName(rooms, roomName);
+			if (target == null) {
+				System.out.println("Requested room not found: " + roomName);
+				return false;
+			}
+			if (target.getUserCount() >= target.getMaxUsers()) {
+				System.out.println("Requested room is full: " + roomName);
+				return false;
+			}
+		}
+
+		System.out.println("Joining room: " + roomName);
+		gameClient.joinRoom(roomName);
+		roomJoinRequested = true;
+		return true;
+	}
+
+	private void refreshRoomInformation(List<Room> rooms, boolean debounced) {
+		if (gamegui != null && rooms != null) {
+			long now = System.currentTimeMillis();
+			if (debounced && now - lastRoomRefreshMs < ROOM_REFRESH_DEBOUNCE_MS) {
+				return;
+			}
+			gamegui.setRoomInformation(rooms);
+			lastRoomRefreshMs = now;
+		}
+	}
+
+	private static Room findRoomByName(List<Room> rooms, String roomName) {
+		for (Room room : rooms) {
+			if (room.getName().equals(roomName)) {
+				return room;
+			}
+		}
+		return null;
+	}
+
+	private static boolean isRoomMetadataMessage(String messageType) {
+		if (messageType == null) {
+			return false;
+		}
+
+		String lower = messageType.toLowerCase();
+		return lower.contains("room") || lower.contains("occup") || lower.contains("join") || lower.contains("leave");
 	}
 
 	private static Board parseBoardState(ArrayList<Integer> state) {

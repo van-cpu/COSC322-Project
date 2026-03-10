@@ -1,2 +1,10 @@
+ubc\cosc322\engine\Move.class
+ubc\cosc322\engine\TerritoryEval.class
+ubc\cosc322\engine\Board$Tile.class
+ubc\cosc322\engine\TerritoryAI.class
+ubc\cosc322\engine\Board.class
+ubc\cosc322\Heuristic\MinDistHeuristic.class
+ubc\cosc322\Tree\MonteCarloAlphaBeta.class
 ubc\cosc322\COSC322Test.class
-ubc\cosc322\COSC322Test$1.class
+ubc\cosc322\engine\AmazonPlayer.class
+ubc\cosc322\Tree\Node.class
