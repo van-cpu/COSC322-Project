@@ -77,20 +77,20 @@ public class COSC322Test extends GamePlayer{
 				List<Room> rooms = gameClient.getRoomList();
 				System.out.println("Available rooms:");
 				
-				boolean joined = false;
-				for(Room r : rooms) {
-						if(r != null) {
-								System.out.println("- " + r.getName() + " | ID: " + r.getId() + " | Users: " + r.getUserList().size());
+				// boolean joined = false;
+				// for(Room r : rooms) {
+				// 		if(r != null) {
+				// 				System.out.println("- " + r.getName() + " | ID: " + r.getId() + " | Users: " + r.getUserList().size());
 								
-								// 2. Automated Host-finding Logic
-								// If we find a room with 1 person, we join it immediately
-								if(!joined && r.getUserList().size() == 1) {
-										System.out.println(">>> [AUTO-JOIN] Found host in: " + r.getName() + " (ID: " + r.getId() + "). Joining...");
-										gameClient.joinRoom(r.getName());
-										joined = true;
-								}
-						}
-				}
+				// 				// 2. Automated Host-finding Logic
+				// 				// If we find a room with 1 person, we join it immediately
+				// 				if(!joined && r.getUserList().size() == 1) {
+				// 						System.out.println(">>> [AUTO-JOIN] Found host in: " + r.getName() + " (ID: " + r.getId() + "). Joining...");
+				// 						gameClient.joinRoom(r.getName());
+				// 						joined = true;
+				// 				}
+				// 		}
+				// }
 
 				userName = gameClient.getUserName(); 
 				
@@ -287,19 +287,22 @@ public class COSC322Test extends GamePlayer{
 
 		
 		public void onRoomListUpdate() {
-				System.out.println(">>> [CRITICAL] onRoomListUpdate() was triggered by the server!");
-				List<Room> rooms = gameClient.getRoomList();
-				for (Room r : rooms) {
-						if (r.getName().equals("Okanagan Lake")) {
-								System.out.println(">>> [DEBUG] Okanagan Lake current users: " + r.getUserList().size());
+				System.out.println(">>> [DEBUG] Room list updated by server. Manual joining enabled.");
+				// List<Room> rooms = gameClient.getRoomList();
+				// for (Room r : rooms) {
+				// 		if (r.getName().equals("Okanagan Lake")) {
+				// 				System.out.println(">>> [DEBUG] Okanagan Lake current users: " + r.getUserList().size());
 								
-								// If the room now has 1 user and we aren't in it yet, join!
-								if (r.getUserList().size() == 1 && !r.isJoined()) {
-										System.out.println(">>> [SYNC] Host detected. Joining Okanagan Lake...");
-										gameClient.joinRoom(r.getName());
-								}
-						}
-				}
+				// 				// If the room now has 1 user and we aren't in it yet, join!
+				// 				if (r.getUserList().size() == 1 && !r.isJoined()) {
+				// 						System.out.println(">>> [SYNC] Host detected. Joining Okanagan Lake...");
+				// 						gameClient.joinRoom(r.getName());
+				// 				}
+				// 		}
+				// }
+				if (gamegui != null) {
+        gamegui.setRoomInformation(gameClient.getRoomList());
+    		}
 		}
     
     @Override
