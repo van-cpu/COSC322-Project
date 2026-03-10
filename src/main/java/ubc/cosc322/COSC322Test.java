@@ -69,64 +69,64 @@ public class COSC322Test extends GamePlayer{
     	
     }
  
-
-
-    @Override
-    public void onLogin() {
-//    	System.out.println("Congratualations!!! "
-//    			+ "I am called because the server indicated that the login is successfully");
-//    	System.out.println("The next step is to find a room and join it: "
-//    			+ "the gameClient instance created in my constructor knows how!"); 
-    	
-    	// Implement the room list
-    	System.out.println("The available room/rooms is/are: ");
-    	List<Room> rooms = gameClient.getRoomList();
-    	for(Room room : rooms) {
-    		System.out.println("- " + room.getName());
-				if (room != null) { System.out.println("- " + room.getName());}
-    	}
-    	
-    	//Joining a room
-    	// if(rooms != null && !rooms.isEmpty()) {
-    	// 	String roomName = rooms.get(0).getName();
-    	// 	System.out.println("Joining room: " + roomName);
-    	// 	gameClient.joinRoom(roomName);
-    	// }else {
-    	// 	System.out.println("No room available.");
-    	// }
-	    userName = gameClient.getUserName(); 
-	    
-	    
-	    if(gamegui != null) {
-	        gamegui.setRoomInformation(gameClient.getRoomList());
-	    }
-    }
-
-    @Override
-    public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
-				//This method will be called by the GameClient when it receives a game-related message
-				//from the server.
-		
-				//For a detailed description of the message types and format, 
-				//see the method GamePlayer.handleGameMessage() in the game-client-api document. 
-				System.out.print("Received game message - ");
-        System.out.print("Type: " + messageType);
-        System.out.print(", Details: " + msgDetails.toString() + "\n");
-
-        if (messageType.equals(GameMessage.GAME_ACTION_START)) {
-						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
-
-						// getGameGUI().updateGameState(msgDetails);
-						// If we have the black queen, we make move
-						if(!isWhiteQueen){
-							System.out.println(">>> [COSC322] Black starts. Calculating first move...");
-							makeBestMove();
+		@Override
+		public void onLogin() {
+				System.out.println(">>> [DEBUG] Login successful.");
+				
+				// 1. Fetch current room list from the server
+				List<Room> rooms = gameClient.getRoomList();
+				System.out.println("Available rooms:");
+				
+				boolean joined = false;
+				for(Room r : rooms) {
+						if(r != null) {
+								System.out.println("- " + r.getName() + " | ID: " + r.getId() + " | Users: " + r.getUserList().size());
+								
+								// 2. Automated Host-finding Logic
+								// If we find a room with 1 person, we join it immediately
+								if(!joined && r.getUserList().size() == 1) {
+										System.out.println(">>> [AUTO-JOIN] Found host in: " + r.getName() + " (ID: " + r.getId() + "). Joining...");
+										gameClient.joinRoom(r.getName());
+										joined = true;
+								}
 						}
-        } else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
-            ArrayList<Integer> initialBoardArray = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE);
-            // The gameBoard is 10x10
-						this.gameBoard = new int[10][10];
-						/*
+				}
+
+				userName = gameClient.getUserName(); 
+				
+				if(gamegui != null) {
+						gamegui.setRoomInformation(rooms);
+				}
+		}
+
+		@Override
+		public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
+				// 1. Safe Room ID Debugging
+				for (Room r : gameClient.getRoomList()) {
+						if (r != null && r.isJoined()) {
+								System.out.println(">>> [DEBUG] Currently in Room ID: " + r.getId());
+								break;
+						}
+				}
+				
+				System.out.print("Received game message - ");
+				System.out.print("Type: " + messageType);
+				System.out.print(", Details: " + msgDetails.toString() + "\n");
+
+				if (messageType.equals(GameMessage.GAME_ACTION_START)) {
+						// Determine role
+						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
+						System.out.println(">>> [COSC322] Server assigned role: " + (isWhiteQueen ? "White" : "Black"));
+
+						// REMOVED: getGameGUI().updateGameState(msgDetails); 
+						// This prevents the NullPointerException crash
+
+						if(!isWhiteQueen){
+								System.out.println(">>> [COSC322] Black starts. Calculating move...");
+								makeBestMove();
+						}
+				} else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
+					/*
 						0 for Empty
 						1 White Queen
 						2 Black Queen
@@ -165,36 +165,29 @@ public class COSC322Test extends GamePlayer{
 						Also, 1 for White Queen, and how translation of the
 						msgDetails of AmazonsGameMessage
 						*/
+						ArrayList<Integer> initialBoardArray = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE);
+						this.gameBoard = new int[10][10];
+						
 						for(int i = 0; i < 10; i++){
-							for(int j = 0; j < 10; j++){
-								int index = (i + 1) * 11 + (j + 1);
-								gameBoard[i][j] = initialBoardArray.get(index);
-							}
+								for(int j = 0; j < 10; j++){
+										int index = (i + 1) * 11 + (j + 1);
+										gameBoard[i][j] = initialBoardArray.get(index);
+								}
 						}
 
-						// Print the game board state
 						printGameBoard();
-
-						// Present the initialBoardArray in the GUI
 						getGameGUI().setGameState(initialBoardArray);
-
-						if(isWhiteQueen){
-								System.out.println("Playing as White Queen");
-						}else{
-								System.out.println("Playing as Black Queen");
-						}
-
-        } else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
-            getGameGUI().updateGameState(msgDetails);
+				} else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
+						getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
 						printGameBoard();
 						makeBestMove();
-        }else{
-					return false;
+				} else {
+						return false;
 				}
 
-        return true;   	
-    }
+				return true;    
+		}
     
 		/* This method is to be implemented */
 		private void makeBestMove(){
