@@ -187,14 +187,18 @@ public class MonteCarloAlphaBeta {
       for (int j = 0; j < 10; j++) {
         if (gameBoard[i][j] == qType) {
           for (int[] d1 : DIRECTIONS) {
-            // d1[0]=dx(col_delta), d1[1]=dy(row_delta); i=row, j=col
             int nY = i + d1[1], nX = j + d1[0];
             while (isWithinBoundary(nX, nY) && gameBoard[nY][nX] == 0) {
               for (int[] d2 : DIRECTIONS) {
                 int aY = nY + d2[1], aX = nX + d2[0];
-                // Arrow may pass through the queen's vacated original square
-                while (isWithinBoundary(aX, aY) && (gameBoard[aY][aX] == 0 || (aY == i && aX == j))) {
-                  moves.add(new int[]{i, j, nY, nX, aY, aX});
+                while (isWithinBoundary(aX, aY)) {
+                  int cell = gameBoard[aY][aX];
+                  boolean isOldSquare = (aY == i && aX == j);
+                  boolean isNewSquare = (aY == nY && aX == nX);
+                  if (cell != 0 && !isOldSquare) break;
+                  if (!isNewSquare) {
+                    moves.add(new int[]{i, j, nY, nX, aY, aX});
+                  }
                   aX += d2[0]; aY += d2[1];
                 }
               }
@@ -328,10 +332,22 @@ public class MonteCarloAlphaBeta {
           for (int[] d1 : DIRECTIONS) {
             int nY = i + d1[1], nX = j + d1[0];
             while (isWithinBoundary(nX, nY) && gameBoard[nY][nX] == 0) {
+              // Arrow fires from (nY,nX). It may pass through the queen's OLD square (i,j)
+              // because that square is now empty. But it CANNOT land on (nY,nX) itself
+              // (the queen is standing there) and cannot land on (i,j) — old square is
+              // already vacated, which is valid to land on.
               for (int[] d2 : DIRECTIONS) {
                 int aY = nY + d2[1], aX = nX + d2[0];
-                while (isWithinBoundary(aX, aY) && (gameBoard[aY][aX] == 0 || (aY == i && aX == j))) {
-                  moves.add(new int[][]{{i, j}, {nY, nX}, {aY, aX}});
+                while (isWithinBoundary(aX, aY)) {
+                  int cell = gameBoard[aY][aX];
+                  boolean isOldQueenSquare = (aY == i && aX == j);
+                  boolean isNewQueenSquare = (aY == nY && aX == nX);
+                  // Arrow can pass through old square, but cannot pass through anything else non-empty
+                  // Arrow cannot land on new queen square
+                  if (cell != 0 && !isOldQueenSquare) break; // blocked by obstacle
+                  if (!isNewQueenSquare) {
+                    moves.add(new int[][]{{i, j}, {nY, nX}, {aY, aX}});
+                  }
                   aX += d2[0]; aY += d2[1];
                 }
               }

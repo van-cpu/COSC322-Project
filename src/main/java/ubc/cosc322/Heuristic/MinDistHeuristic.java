@@ -184,7 +184,7 @@ public class MinDistHeuristic {
   }
 
   /**
-   * ENDGAME EVALUATOR: counts reachable squares for each player using a
+   * Fix end game issue: counts reachable squares for each player using a
    * flood-fill (BFS treating the board like a simple graph of empty squares
    * reachable by queen moves).  The player with more reachable squares wins.
    *
