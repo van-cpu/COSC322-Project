@@ -1,4 +1,3 @@
-
 package ubc.cosc322;
 
 import java.util.ArrayList;
@@ -31,9 +30,16 @@ public class COSC322Test extends GamePlayer{
     private String userName = null;
     private String passwd = null;
 
-		/* Instance variables new */
-		private boolean isWhiteQueen;
-		private int[][] gameBoard;
+    /* Instance variables */
+    private boolean isWhiteQueen;
+    private int[][] gameBoard;
+
+    /**
+     * FIX: track game-over so makeBestMove() is never called after the game ends.
+     * Without this flag, the server times out waiting for a move that will never come,
+     * producing the "Timeout Count = N" spam seen when a player has no moves left.
+     */
+    private boolean gameOver = false;
 	
     /**
      * The main method
@@ -58,7 +64,7 @@ public class COSC322Test extends GamePlayer{
     /**
      * Any name and passwd 
      * @param userName
-      * @param passwd
+     * @param passwd
      */
     public COSC322Test(String userName, String passwd) {
     	this.userName = userName;
@@ -67,46 +73,45 @@ public class COSC322Test extends GamePlayer{
     	//To make a GUI-based player, create an instance of BaseGameGUI
     	//and implement the method getGameGUI() accordingly
     	this.gamegui = new BaseGameGUI(this);
-    	
     }
  
-		@Override
-		public void onLogin() {
-				System.out.println("Congratualations!!! "
-				+ "I am called because the server indicated that the login is successfully");
-				System.out.println("The next step is to find a room and join it: "
-				+ "the gameClient instance created in my constructor knows how!"); 
-				userName = gameClient.getUserName(); 
-				
-				// Attempt to get the initial list
-				List<Room> rooms = gameClient.getRoomList();
-				
-				System.out.println("The available room/roms is/are:");
+    @Override
+    public void onLogin() {
+        System.out.println("Congratualations!!! "
+        + "I am called because the server indicated that the login is successfully");
+        System.out.println("The next step is to find a room and join it: "
+        + "the gameClient instance created in my constructor knows how!"); 
+        userName = gameClient.getUserName(); 
+        
+        // Attempt to get the initial list
+        List<Room> rooms = gameClient.getRoomList();
+        
+        System.out.println("The available room/roms is/are:");
 
-				for(int i = 0; i < rooms.size(); i++){
-					System.out.println(rooms.get(i).getName());
-				}
+        for(int i = 0; i < rooms.size(); i++){
+            System.out.println(rooms.get(i).getName());
+        }
 
-		//		gameClient.joinRoom(roomList.get(6).getName());
+        userName = gameClient.getUserName();
+        if(getGameGUI() != null){
+            getGameGUI().setRoomInformation(gameClient.getRoomList());
+        }
+    }
 
-				userName = gameClient.getUserName();
-				if(getGameGUI() != null){
-					getGameGUI().setRoomInformation(gameClient.getRoomList());
-				}
-		}
+    @Override
+    public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
+        
+        if (messageType.equals(GameMessage.GAME_ACTION_START)) {
+            // FIX: reset game-over flag at the start of every new game
+            gameOver = false;
 
-		@Override
-		public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
-				// [Existing debugging code...]
-				
-				if (messageType.equals(GameMessage.GAME_ACTION_START)) {
-						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
+            isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
 
-						if(!isWhiteQueen){
-								makeBestMove();
-						}
-				} else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
-					/*
+            if(!isWhiteQueen){
+                makeBestMove();
+            }
+        } else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
+						/*
 						0 for Empty
 						1 White Queen
 						2 Black Queen
@@ -145,160 +150,147 @@ public class COSC322Test extends GamePlayer{
 						Also, 1 for White Queen, and how translation of the
 						msgDetails of AmazonsGameMessage
 						*/
-						ArrayList<Integer> initialBoardArray = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE);
-						this.gameBoard = new int[10][10];
-						
-						for(int i = 0; i < 10; i++){
-								for(int j = 0; j < 10; j++){
-										int index = (i + 1) * 11 + (j + 1);
-										gameBoard[i][j] = initialBoardArray.get(index);
-								}
-						}
+            ArrayList<Integer> initialBoardArray = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE);
+            this.gameBoard = new int[10][10];
+            
+            for(int i = 0; i < 10; i++){
+                for(int j = 0; j < 10; j++){
+                    int index = (i + 1) * 11 + (j + 1);
+                    gameBoard[i][j] = initialBoardArray.get(index);
+                }
+            }
 
-						printGameBoard();
-						getGameGUI().setGameState(initialBoardArray);
-						
-						if (isWhiteQueen) {
-							System.out.println("Playing as White Queen");
-						}else{
-							System.out.println("Playing as Black Queen");
-						}
-				} else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
-						getGameGUI().updateGameState(msgDetails);
-						updateGameBoard(msgDetails);
-						printGameBoard();
-						makeBestMove();
-				} else {
-						return false;
-				}
+            printGameBoard();
+            getGameGUI().setGameState(initialBoardArray);
+            
+            if (isWhiteQueen) {
+                System.out.println("Playing as White Queen");
+            }else{
+                System.out.println("Playing as Black Queen");
+            }
+        } else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
+            // FIX: if the game is already over (we have no moves), ignore further
+            // GAME_ACTION_MOVE events instead of calling makeBestMove() again and
+            // generating the endless "Timeout Count = N" loop.
+            if (gameOver) {
+                System.out.println("Game is over. Ignoring incoming move.");
+                return true;
+            }
 
-				return true;    
-		}
+            getGameGUI().updateGameState(msgDetails);
+            updateGameBoard(msgDetails);
+            printGameBoard();
+            makeBestMove();
+        } else {
+            return false;
+        }
+
+        return true;    
+    }
     
-		/* This method is to be implemented */
-		private void makeBestMove(){
-			System.out.println("> Initiating Hybrid Search for " + (isWhiteQueen ? "White" : "Black") + "...");
+    private void makeBestMove(){
+        // Safety guard: never attempt a move after the game has ended
+        if (gameOver) return;
 
-			if(isWhiteQueen){
-				System.out.println("Playing as White Queen");
-			}else{
-				System.out.println("Playing as Black Queen");
-			}
+        System.out.println("> Initiating Hybrid Search for " + (isWhiteQueen ? "White" : "Black") + "...");
 
-			// 1. Instantiate the hybrid search engine
-			MonteCarloAlphaBeta searchEngine = new MonteCarloAlphaBeta();
-			
-			// 2. Perform the hybrid search 
-			int[][] bestMove = searchEngine.performSearch(isWhiteQueen, this.gameBoard);
+        if(isWhiteQueen){
+            System.out.println("Playing as White Queen");
+        }else{
+            System.out.println("Playing as Black Queen");
+        }
 
-			if (bestMove != null) {
-				// 3. Convert 0-based indices to 1-based server indices
-				// Result: [0]=Old, [1]=New, [2]=Arrow
-				System.out.println("Best Move Found: " + (bestMove[0][0] + 1) + "," + (bestMove[0][1] + 1) + " → " + (bestMove[1][0] + 1) + "," + (bestMove[1][1] + 1));
+        // 1. Instantiate the hybrid search engine
+        MonteCarloAlphaBeta searchEngine = new MonteCarloAlphaBeta();
+        
+        // 2. Perform the hybrid search 
+        int[][] bestMove = searchEngine.performSearch(isWhiteQueen, this.gameBoard);
 
-				// 4. Wrap coordinates in the required message structure
-				Map<String, Object> moveMessage = new HashMap<>();
-				moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, new ArrayList<>(Arrays.asList(bestMove[0][0] + 1, bestMove[0][1] + 1)));
-				moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, new ArrayList<>(Arrays.asList(bestMove[1][0] + 1, bestMove[1][1] + 1)));
-				moveMessage.put(AmazonsGameMessage.ARROW_POS, new ArrayList<>(Arrays.asList(bestMove[2][0] + 1, bestMove[2][1] + 1)));
+        if (bestMove != null) {
+            // 3. Convert 0-based indices to 1-based server indices
+            // Result: [0]=Old, [1]=New, [2]=Arrow
+            System.out.println("Best Move Found: " + (bestMove[0][0] + 1) + "," + (bestMove[0][1] + 1) + " → " + (bestMove[1][0] + 1) + "," + (bestMove[1][1] + 1));
 
-				// 5. Commit move: Send to server, update GUI, and sync local gameBoard
-				// Using getGameClient() and getGameGUI() as per your class implementation
-				getGameClient().sendMoveMessage(moveMessage);
-				getGameGUI().updateGameState(moveMessage);
-				
-				// Using your defined method: updateGameBoard()
-				updateGameBoard(moveMessage); 
+            // 4. Wrap coordinates in the required message structure
+            Map<String, Object> moveMessage = new HashMap<>();
+            moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, new ArrayList<>(Arrays.asList(bestMove[0][0] + 1, bestMove[0][1] + 1)));
+            moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, new ArrayList<>(Arrays.asList(bestMove[1][0] + 1, bestMove[1][1] + 1)));
+            moveMessage.put(AmazonsGameMessage.ARROW_POS, new ArrayList<>(Arrays.asList(bestMove[2][0] + 1, bestMove[2][1] + 1)));
 
-				System.out.println("Move successfully committed to server: " + moveMessage);
-			} else {
-				System.out.println("No valid moves remaining.");
-			}
-		}
+            // 5. Commit move: Send to server, update GUI, and sync local gameBoard
+            getGameClient().sendMoveMessage(moveMessage);
+            getGameGUI().updateGameState(moveMessage);
+            updateGameBoard(moveMessage); 
 
-		private void printGameBoard(){
-			if(this.gameBoard == null){
-				System.out.println("Game Board State is null");
-				return;
-			}
-			System.out.println("Current Game Board State is:");
-			// Printing the board state in reverse order of int[][] gameBoard
-			/*
-						Current Game Board State is:
-			[0, 0, 0, 1, 0, 0, 1, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[2, 0, 0, 0, 0, 0, 0, 0, 0, 2]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-			[0, 0, 0, 2, 0, 0, 2, 0, 0, 0]
-			*/
-			for(int i = 9; i >= 0; i--){
-				System.out.println(Arrays.toString(gameBoard[i]));
-			}
-			System.out.println();
-		}
+            System.out.println("Move successfully committed to server: " + moveMessage);
+        } else {
+            // FIX: set gameOver flag and announce the result clearly.
+            // The Game of Amazons rule: the player who cannot move LOSES.
+            // So if we have no moves, the opponent wins.
+            gameOver = true;
+            String winner = isWhiteQueen ? "BLACK" : "WHITE";
+            System.out.println("==============================================");
+            System.out.println("  GAME OVER — " + (isWhiteQueen ? "White" : "Black") + " has no valid moves.");
+            System.out.println("  WINNER: " + winner);
+            System.out.println("==============================================");
+        }
+    }
 
-		private void updateGameBoard(Map<String, Object> msgDetails){
-			if(gameBoard == null){
-				System.out.println("An Error Has Occurred: Game Board is Null");
-				return;
-			}
-			
-			// Extract QUEEN_POS_CURR, QUEEN_POS_NEXT, ARROW_POS from msgDetails and convert to ArrayList<Integer>
-			ArrayList<Integer> queenOldPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_CURR);
-			ArrayList<Integer> queenNewPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_NEXT);
-			ArrayList<Integer> arrow = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.ARROW_POS);
-			// System.out.println(queenOldPos.toString());
-			// System.out.println(queenNewPos.toString());
+    private void printGameBoard(){
+        if(this.gameBoard == null){
+            System.out.println("Game Board State is null");
+            return;
+        }
+        System.out.println("Current Game Board State is:");
+        for(int i = 9; i >= 0; i--){
+            System.out.println(Arrays.toString(gameBoard[i]));
+        }
+        System.out.println();
+    }
 
-			// The position indices for game server and GUI is 1-based, from 1 to 10, we need to convert to 0 to 9
-			// Position get 1 returns X index, and get 0 returns Y index, all subtract 1 to convert to 0-base
-			int oldX = queenOldPos.get(1) - 1;
-			int oldY = queenOldPos.get(0) - 1;
-			int newX = queenNewPos.get(1) - 1;
-			int newY = queenNewPos.get(0) - 1;
-			int arrowX = arrow.get(1) - 1;
-			int arrowY = arrow.get(0) - 1;
+    private void updateGameBoard(Map<String, Object> msgDetails){
+        if(gameBoard == null){
+            System.out.println("An Error Has Occurred: Game Board is Null");
+            return;
+        }
+        
+        ArrayList<Integer> queenOldPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        ArrayList<Integer> queenNewPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        ArrayList<Integer> arrow = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.ARROW_POS);
 
-			// get the value of the queen (black or white) at the old position
-			int movingQueen = gameBoard[oldY][oldX];
+        // The position indices for game server and GUI is 1-based (1–10); convert to 0-based (0–9)
+        // get(0) = row (Y), get(1) = col (X)
+        int oldX = queenOldPos.get(1) - 1;
+        int oldY = queenOldPos.get(0) - 1;
+        int newX = queenNewPos.get(1) - 1;
+        int newY = queenNewPos.get(0) - 1;
+        int arrowX = arrow.get(1) - 1;
+        int arrowY = arrow.get(0) - 1;
 
-			// Set the newY,newX for the movingQueen value
-			gameBoard[newY][newX] = movingQueen;
-			// Clear the Queen value at the old indices because the queen has moved, empty field has value 0
-			gameBoard[oldY][oldX] = 0;
-
-			// Place the arrow, arrow has value of 3 as always
-			gameBoard[arrowY][arrowX] = 3;
-		}
+        int movingQueen = gameBoard[oldY][oldX];
+        gameBoard[newY][newX] = movingQueen;
+        gameBoard[oldY][oldX] = 0;
+        gameBoard[arrowY][arrowX] = 3;
+    }
     
     @Override
     public String userName() {
     	return userName;
     }
 
-		@Override
-		public GameClient getGameClient() {
-			// TODO Auto-generated method stub
-			return this.gameClient;
-		}
+    @Override
+    public GameClient getGameClient() {
+        return this.gameClient;
+    }
 
-		@Override
-		public BaseGameGUI getGameGUI() {
-			// TODO Auto-generated method stub
-			// Updated this to return the gamegui
-			return  this.gamegui;
-		}
+    @Override
+    public BaseGameGUI getGameGUI() {
+        return this.gamegui;
+    }
 
-		@Override
-		public void connect() {
-			// TODO Auto-generated method stub
-				gameClient = new GameClient(userName, passwd, this);			
-		}
+    @Override
+    public void connect() {
+        gameClient = new GameClient(userName, passwd, this);			
+    }
 
- 
 }//end of class
