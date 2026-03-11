@@ -21,6 +21,7 @@ import ygraph.ai.smartfox.games.amazons.AmazonsGameMessage;
  * @author Yong Gao (yong.gao@ubc.ca)
  * Jan 5, 2021
  * Run on cmd line with: mvn exec:java -Dexec.mainClass="ubc.cosc322.COSC322Test" -Dexec.args="cosc322 cosc322"
+ * mvn exec:java -Dexec.mainClass="ubc.cosc322.COSC322Test" -Dexec.args="cosc322 cosc322" -Dexec.vmArgs="-Xmx2g"
  */
 public class COSC322Test extends GamePlayer{
 
@@ -40,7 +41,7 @@ public class COSC322Test extends GamePlayer{
      */
     public static void main(String[] args) {				 
     	COSC322Test player = new COSC322Test(args[0], args[1]);
-    	player.connect();
+
     	if(player.getGameGUI() == null) {
     		player.Go();
     	}
@@ -71,58 +72,37 @@ public class COSC322Test extends GamePlayer{
  
 		@Override
 		public void onLogin() {
-				System.out.println(">>> [DEBUG] Login successful.");
-				
-				// 1. Fetch current room list from the server
-				List<Room> rooms = gameClient.getRoomList();
-				System.out.println("Available rooms:");
-				
-				// boolean joined = false;
-				// for(Room r : rooms) {
-				// 		if(r != null) {
-				// 				System.out.println("- " + r.getName() + " | ID: " + r.getId() + " | Users: " + r.getUserList().size());
-								
-				// 				// 2. Automated Host-finding Logic
-				// 				// If we find a room with 1 person, we join it immediately
-				// 				if(!joined && r.getUserList().size() == 1) {
-				// 						System.out.println(">>> [AUTO-JOIN] Found host in: " + r.getName() + " (ID: " + r.getId() + "). Joining...");
-				// 						gameClient.joinRoom(r.getName());
-				// 						joined = true;
-				// 				}
-				// 		}
-				// }
-
+				System.out.println("Congratualations!!! "
+				+ "I am called because the server indicated that the login is successfully");
+				System.out.println("The next step is to find a room and join it: "
+				+ "the gameClient instance created in my constructor knows how!"); 
 				userName = gameClient.getUserName(); 
 				
-				if(gamegui != null) {
-						gamegui.setRoomInformation(rooms);
+				// Attempt to get the initial list
+				List<Room> rooms = gameClient.getRoomList();
+				
+				System.out.println("The available room/roms is/are:");
+
+				for(int i = 0; i < rooms.size(); i++){
+					System.out.println(rooms.get(i).getName());
+				}
+
+		//		gameClient.joinRoom(roomList.get(6).getName());
+
+				userName = gameClient.getUserName();
+				if(getGameGUI() != null){
+					getGameGUI().setRoomInformation(gameClient.getRoomList());
 				}
 		}
 
 		@Override
 		public boolean handleGameMessage(String messageType, Map<String, Object> msgDetails) {
-				// 1. Safe Room ID Debugging
-				for (Room r : gameClient.getRoomList()) {
-						if (r != null && r.isJoined()) {
-								System.out.println(">>> [DEBUG] Currently in Room ID: " + r.getId());
-								break;
-						}
-				}
+				// [Existing debugging code...]
 				
-				System.out.print("Received game message - ");
-				System.out.print("Type: " + messageType);
-				System.out.print(", Details: " + msgDetails.toString() + "\n");
-
 				if (messageType.equals(GameMessage.GAME_ACTION_START)) {
-						// Determine role
 						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
-						System.out.println(">>> [COSC322] Server assigned role: " + (isWhiteQueen ? "White" : "Black"));
-
-						// REMOVED: getGameGUI().updateGameState(msgDetails); 
-						// This prevents the NullPointerException crash
 
 						if(!isWhiteQueen){
-								System.out.println(">>> [COSC322] Black starts. Calculating move...");
 								makeBestMove();
 						}
 				} else if (messageType.equals(GameMessage.GAME_STATE_BOARD)) {
@@ -177,6 +157,12 @@ public class COSC322Test extends GamePlayer{
 
 						printGameBoard();
 						getGameGUI().setGameState(initialBoardArray);
+						
+						if (isWhiteQueen) {
+							System.out.println("Playing as White Queen");
+						}else{
+							System.out.println("Playing as Black Queen");
+						}
 				} else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
 						getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
@@ -193,6 +179,12 @@ public class COSC322Test extends GamePlayer{
 		private void makeBestMove(){
 			System.out.println("> Initiating Hybrid Search for " + (isWhiteQueen ? "White" : "Black") + "...");
 
+			if(isWhiteQueen){
+				System.out.println("Playing as White Queen");
+			}else{
+				System.out.println("Playing as Black Queen");
+			}
+
 			// 1. Instantiate the hybrid search engine
 			MonteCarloAlphaBeta searchEngine = new MonteCarloAlphaBeta();
 			
@@ -202,15 +194,13 @@ public class COSC322Test extends GamePlayer{
 			if (bestMove != null) {
 				// 3. Convert 0-based indices to 1-based server indices
 				// Result: [0]=Old, [1]=New, [2]=Arrow
-				ArrayList<Integer> queenCurr = new ArrayList<>(Arrays.asList(bestMove[0][0] + 1, bestMove[0][1] + 1));
-				ArrayList<Integer> queenNext = new ArrayList<>(Arrays.asList(bestMove[1][0] + 1, bestMove[1][1] + 1));
-				ArrayList<Integer> arrowPos = new ArrayList<>(Arrays.asList(bestMove[2][0] + 1, bestMove[2][1] + 1));
+				System.out.println("Best Move Found: " + (bestMove[0][0] + 1) + "," + (bestMove[0][1] + 1) + " → " + (bestMove[1][0] + 1) + "," + (bestMove[1][1] + 1));
 
 				// 4. Wrap coordinates in the required message structure
 				Map<String, Object> moveMessage = new HashMap<>();
-				moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, queenCurr);
-				moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, queenNext);
-				moveMessage.put(AmazonsGameMessage.ARROW_POS, arrowPos);
+				moveMessage.put(AmazonsGameMessage.QUEEN_POS_CURR, new ArrayList<>(Arrays.asList(bestMove[0][0] + 1, bestMove[0][1] + 1)));
+				moveMessage.put(AmazonsGameMessage.QUEEN_POS_NEXT, new ArrayList<>(Arrays.asList(bestMove[1][0] + 1, bestMove[1][1] + 1)));
+				moveMessage.put(AmazonsGameMessage.ARROW_POS, new ArrayList<>(Arrays.asList(bestMove[2][0] + 1, bestMove[2][1] + 1)));
 
 				// 5. Commit move: Send to server, update GUI, and sync local gameBoard
 				// Using getGameClient() and getGameGUI() as per your class implementation
@@ -220,9 +210,9 @@ public class COSC322Test extends GamePlayer{
 				// Using your defined method: updateGameBoard()
 				updateGameBoard(moveMessage); 
 
-				System.out.println("> Move successfully committed to server.");
+				System.out.println("Move successfully committed to server: " + moveMessage);
 			} else {
-				System.out.println("> No valid moves remaining.");
+				System.out.println("No valid moves remaining.");
 			}
 		}
 
@@ -255,14 +245,15 @@ public class COSC322Test extends GamePlayer{
 		private void updateGameBoard(Map<String, Object> msgDetails){
 			if(gameBoard == null){
 				System.out.println("An Error Has Occurred: Game Board is Null");
+				return;
 			}
 			
 			// Extract QUEEN_POS_CURR, QUEEN_POS_NEXT, ARROW_POS from msgDetails and convert to ArrayList<Integer>
 			ArrayList<Integer> queenOldPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_CURR);
 			ArrayList<Integer> queenNewPos = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_NEXT);
 			ArrayList<Integer> arrow = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.ARROW_POS);
-			System.out.println(queenOldPos.toString());
-			System.out.println(queenNewPos.toString());
+			// System.out.println(queenOldPos.toString());
+			// System.out.println(queenNewPos.toString());
 
 			// The position indices for game server and GUI is 1-based, from 1 to 10, we need to convert to 0 to 9
 			// Position get 1 returns X index, and get 0 returns Y index, all subtract 1 to convert to 0-base
@@ -283,26 +274,6 @@ public class COSC322Test extends GamePlayer{
 
 			// Place the arrow, arrow has value of 3 as always
 			gameBoard[arrowY][arrowX] = 3;
-		}
-
-		
-		public void onRoomListUpdate() {
-				System.out.println(">>> [DEBUG] Room list updated by server. Manual joining enabled.");
-				// List<Room> rooms = gameClient.getRoomList();
-				// for (Room r : rooms) {
-				// 		if (r.getName().equals("Okanagan Lake")) {
-				// 				System.out.println(">>> [DEBUG] Okanagan Lake current users: " + r.getUserList().size());
-								
-				// 				// If the room now has 1 user and we aren't in it yet, join!
-				// 				if (r.getUserList().size() == 1 && !r.isJoined()) {
-				// 						System.out.println(">>> [SYNC] Host detected. Joining Okanagan Lake...");
-				// 						gameClient.joinRoom(r.getName());
-				// 				}
-				// 		}
-				// }
-				if (gamegui != null) {
-        gamegui.setRoomInformation(gameClient.getRoomList());
-    		}
 		}
     
     @Override

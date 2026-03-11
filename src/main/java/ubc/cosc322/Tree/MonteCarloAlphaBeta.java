@@ -30,38 +30,28 @@ public class MonteCarloAlphaBeta {
   }
 
   // Inside MonteCarloAlphaBeta.java
+  public int[][] performSearch(boolean isWhiteQueen, int[][] gameBoard) {
+        if (hasNoValidMoves(isWhiteQueen, gameBoard)) return null;
 
-public int[][] performSearch(boolean isWhiteQueen, int[][] gameBoard) {
-    if (hasNoValidMoves(isWhiteQueen, gameBoard)) {
-        return null; 
+        int arrowCount = 0;
+        for(int[] row : gameBoard) for(int cell : row) if(cell == 3) arrowCount++;
+
+        if (arrowCount >= 45 && isPlayersSeparated(gameBoard)) {
+            System.out.println("> Switching to Memory-Efficient Alpha-Beta.");
+            return alphaBetaSearch(gameBoard, 2, Integer.MIN_VALUE, Integer.MAX_VALUE, true, isWhiteQueen);
+        }
+
+        System.out.println("> Running MCTS.");
+        Node root = new Node(null, null, gameBoard, isWhiteQueen);
+        for (int i = 0; i < SIMULATION_LIMIT; i++) {
+            Node node = selectNode(root);
+            if (!node.isFullyExpanded) node = expandNode(node);
+            int result = simulatePlayout(node);
+            backpropagateResult(node, result);
+        }
+        return getBestMoveFromNode(root);
     }
 
-    // NEW: Count arrows to determine phase
-    int arrowCount = 0;
-    for(int[] row : gameBoard) {
-        for(int cell : row) if(cell == 3) arrowCount++;
-    }
-
-    // Only switch to Alpha-Beta if the game is in the "end" phase (many arrows)
-    if (arrowCount >= 45 && isPlayersSeparated(gameBoard)) {
-        System.out.println("> SEPARATION DETECTED: Switching to Alpha-Beta Solver.");
-        // Reduce depth to 2 to ensure we don't timeout
-        int[][] abMove = alphaBetaSearch(gameBoard, 2, Integer.MIN_VALUE, Integer.MAX_VALUE, true, isWhiteQueen);
-        printMoveDetails("Alpha-Beta", abMove);
-        return abMove;
-    }
-
-    // MID-GAME/OPENING: Use MCTS
-    System.out.println("> Running MCTS.");
-    Node root = new Node(null, null, gameBoard, isWhiteQueen);
-    for (int i = 0; i < SIMULATION_LIMIT; i++) {
-        Node node = selectNode(root);
-        if (!node.isFullyExpanded) node = expandNode(node);
-        int result = simulatePlayout(node);
-        backpropagateResult(node, result);
-    }
-    return getBestMoveFromNode(root);
-  }
 
   // Print method for performSearch() to help debug
   private void printMoveDetails(String strategy, int[][] move) {
@@ -111,46 +101,80 @@ public int[][] performSearch(boolean isWhiteQueen, int[][] gameBoard) {
   }
 
   private int[][] alphaBetaSearch(int[][] gameBoard, int depth, int alpha, int beta, boolean maxPlayer, boolean isWhite) {
-    List<int[][]> moves = generatePossibleMoves(isWhite, gameBoard);
-    if (moves.isEmpty()) return null;
+        List<int[]> moves = generatePossibleMovesFlat(isWhite, gameBoard);
+        if (moves.isEmpty()) return null;
 
-    int[][] bestMove = null;
-    int bestValue = maxPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+        int[] bestMove = null;
+        int bestValue = maxPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+        int qType = isWhite ? 2 : 1;
 
-    for (int[][] move : moves) {
-      int val = minimax(applyMove(gameBoard, move), depth - 1, alpha, beta, !maxPlayer, !isWhite);
-      if (maxPlayer) {
-        if (val > bestValue) { bestValue = val; bestMove = move; }
-        alpha = Math.max(alpha, bestValue);
-      } else {
-        if (val < bestValue) { bestValue = val; bestMove = move; }
-        beta = Math.min(beta, bestValue);
-      }
-      if (beta <= alpha) break;
+        for (int[] move : moves) {
+            applyMove(gameBoard, move, qType);
+            int val = minimax(gameBoard, depth - 1, alpha, beta, !maxPlayer, !isWhite);
+            unmakeMove(gameBoard, move);
+
+            if (maxPlayer) {
+                if (val > bestValue) { bestValue = val; bestMove = move; }
+                alpha = Math.max(alpha, bestValue);
+            } else {
+                if (val < bestValue) { bestValue = val; bestMove = move; }
+                beta = Math.min(beta, bestValue);
+            }
+            if (beta <= alpha) break;
+        }
+        return (bestMove != null) ? new int[][]{{bestMove[0], bestMove[1]}, {bestMove[2], bestMove[3]}, {bestMove[4], bestMove[5]}} : null;
     }
-    return bestMove;
-  }
 
   private int minimax(int[][] gameBoard, int depth, int alpha, int beta, boolean maxPlayer, boolean isWhite) {
-    if (depth == 0) return MinDistHeuristic.evalGameBoard(gameBoard, isWhite);
-    
-    List<int[][]> moves = generatePossibleMoves(isWhite, gameBoard);
-    if (moves.isEmpty()) return maxPlayer ? Integer.MIN_VALUE + 1 : Integer.MAX_VALUE - 1;
+      if (depth == 0) return MinDistHeuristic.evalGameBoard(gameBoard, isWhite);
+      
+      List<int[]> moves = generatePossibleMovesFlat(isWhite, gameBoard);
+      if (moves.isEmpty()) return maxPlayer ? Integer.MIN_VALUE + 1 : Integer.MAX_VALUE - 1;
 
-    int value = maxPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
-    for (int[][] move : moves) {
-      int res = minimax(applyMove(gameBoard, move), depth - 1, alpha, beta, !maxPlayer, !isWhite);
-      if (maxPlayer) {
-        value = Math.max(value, res);
-        alpha = Math.max(alpha, value);
-      } else {
-        value = Math.min(value, res);
-        beta = Math.min(beta, value);
+      int value = maxPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+      int qType = isWhite ? 2 : 1;
+
+      for (int[] move : moves) {
+          applyMove(gameBoard, move, qType);
+          int res = minimax(gameBoard, depth - 1, alpha, beta, !maxPlayer, !isWhite);
+          unmakeMove(gameBoard, move);
+          
+          if (maxPlayer) {
+              value = Math.max(value, res);
+              alpha = Math.max(alpha, value);
+          } else {
+              value = Math.min(value, res);
+              beta = Math.min(beta, value);
+          }
+          if (beta <= alpha) break;
       }
-      if (beta <= alpha) break;
-    }
-    return value;
+      return value;
   }
+
+  private List<int[]> generatePossibleMovesFlat(boolean isWhite, int[][] gameBoard) {
+        List<int[]> moves = new ArrayList<>();
+        int qType = isWhite ? 2 : 1;
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (gameBoard[i][j] == qType) {
+                    for (int[] d1 : DIRECTIONS) {
+                        int nY = i + d1[1], nX = j + d1[0];
+                        while (isWithinBoundary(nX, nY) && gameBoard[nY][nX] == 0) {
+                            for (int[] d2 : DIRECTIONS) {
+                                int aY = nY + d2[1], aX = nX + d2[0];
+                                while (isWithinBoundary(aX, aY) && (gameBoard[aY][aX] == 0 || (aY == i && aX == j))) {
+                                    moves.add(new int[]{i, j, nY, nX, aY, aX});
+                                    aX += d2[0]; aY += d2[1];
+                                }
+                            }
+                            nX += d1[0]; nY += d1[1];
+                        }
+                    }
+                }
+            }
+        }
+        return moves;
+    }
 
   private Node selectNode(Node node) {
     while (!node.children.isEmpty()) {
@@ -255,5 +279,19 @@ private int[][] applyMove(int[][] gameBoard, int[][] move) {
       }
     }
     return moves;
+  }
+  
+  private void applyMove(int[][] board, int[] move, int queenType) {
+      // move is expected as: {oldY, oldX, newY, newX, arrowY, arrowX}
+      board[move[0]][move[1]] = 0;           // Clear old position
+      board[move[2]][move[3]] = queenType;   // Set new queen position
+      board[move[4]][move[5]] = 3;           // Place arrow
+  }
+
+  private void unmakeMove(int[][] board, int[] move) {
+      int queenType = board[move[2]][move[3]]; // Identify which queen was here
+      board[move[2]][move[3]] = 0;             // Clear new position
+      board[move[0]][move[1]] = queenType;     // Restore old position
+      board[move[4]][move[5]] = 0;             // Remove arrow
   }
 }
