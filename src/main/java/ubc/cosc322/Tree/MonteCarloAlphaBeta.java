@@ -313,6 +313,13 @@ public class MonteCarloAlphaBeta {
     int queenType = nextBoard[qY][qX];
     nextBoard[qY][qX] = 0;
     nextBoard[nY][nX] = queenType;
+    // Safety: never overwrite a queen with an arrow
+    int arrowTarget = nextBoard[aY][aX];
+    if (arrowTarget == 1 || arrowTarget == 2) {
+      System.err.println("WARNING: applyMove (MCTS) tried to overwrite queen at ["
+          + aY + "," + aX + "] with arrow! Move rejected.");
+      return nextBoard;
+    }
     nextBoard[aY][aX] = 3;
     return nextBoard;
   }
@@ -364,6 +371,13 @@ public class MonteCarloAlphaBeta {
   private void applyMove(int[][] board, int[] move, int queenType) {
     board[move[0]][move[1]] = 0;
     board[move[2]][move[3]] = queenType;
+    // Safety: never overwrite a queen with an arrow
+    int arrowTarget = board[move[4]][move[5]];
+    if (arrowTarget == 1 || arrowTarget == 2) {
+      System.err.println("WARNING: applyMove tried to overwrite queen at ["
+          + move[4] + "," + move[5] + "] with arrow! Move rejected.");
+      return;
+    }
     board[move[4]][move[5]] = 3;
   }
 
