@@ -16,7 +16,7 @@ public class MonteCarloAlphaBeta {
   // Cap on moves considered per node to prevent memory explosion in open positions
   private static final int MAX_MOVES_PER_NODE = 30;
   // Depth for random rollout during MCTS simulation
-  private static final int ROLLOUT_DEPTH = 6;
+  private static final int ROLLOUT_DEPTH = 12;
 
   private static final int[][] DIRECTIONS = {
     {-1, 0}, {1, 0}, {0, -1}, {0, 1},
