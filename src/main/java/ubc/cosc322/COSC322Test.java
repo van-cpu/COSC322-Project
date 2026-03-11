@@ -91,8 +91,6 @@ public class COSC322Test extends GamePlayer{
 				// 				}
 				// 		}
 				// }
-
-				userName = gameClient.getUserName(); 
 				
 				if(gamegui != null) {
 						gamegui.setRoomInformation(rooms);
@@ -117,9 +115,6 @@ public class COSC322Test extends GamePlayer{
 						// Determine role
 						isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE).equals(getGameClient().getUserName());
 						System.out.println(">>> [COSC322] Server assigned role: " + (isWhiteQueen ? "White" : "Black"));
-
-						// REMOVED: getGameGUI().updateGameState(msgDetails); 
-						// This prevents the NullPointerException crash
 
 						if(!isWhiteQueen){
 								System.out.println(">>> [COSC322] Black starts. Calculating move...");
@@ -167,7 +162,6 @@ public class COSC322Test extends GamePlayer{
 						*/
 						ArrayList<Integer> initialBoardArray = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.GAME_STATE);
 						this.gameBoard = new int[10][10];
-						
 						for(int i = 0; i < 10; i++){
 								for(int j = 0; j < 10; j++){
 										int index = (i + 1) * 11 + (j + 1);
@@ -178,10 +172,8 @@ public class COSC322Test extends GamePlayer{
 						printGameBoard();
 						getGameGUI().setGameState(initialBoardArray);
 						
-						// Update the GUI to actually render the pieces on the board
-						Map<String, Object> guiUpdate = new HashMap<>();
-						guiUpdate.put(AmazonsGameMessage.GAME_STATE, initialBoardArray);
-						getGameGUI().updateGameState(guiUpdate);
+						// Manually render initial pieces on the GUI
+						renderInitialPieces();
 				} else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
 						getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
@@ -288,6 +280,54 @@ public class COSC322Test extends GamePlayer{
 
 			// Place the arrow, arrow has value of 3 as always
 			gameBoard[arrowY][arrowX] = 3;
+		}
+
+		/**
+		 * Render initial pieces on the GUI board by simulating piece placements
+		 * This is needed because setGameState() alone doesn't render the pieces visually
+		 */
+		private void renderInitialPieces() {
+				if (gameBoard == null) return;
+				
+				System.out.println(">>> [DEBUG] Rendering initial pieces on GUI...");
+				
+				// Find an empty cell to place temporary arrows
+				ArrayList<Integer> tempArrowPos = null;
+				for (int row = 0; row < 10 && tempArrowPos == null; row++) {
+						for (int col = 0; col < 10; col++) {
+								if (gameBoard[row][col] == 0) {
+										tempArrowPos = new ArrayList<>(Arrays.asList(row + 1, col + 1));
+										break;
+								}
+						}
+				}
+				
+				if (tempArrowPos == null) {
+						// Fallback to center if no empty cell (shouldn't happen)
+						tempArrowPos = new ArrayList<>(Arrays.asList(5, 5));
+				}
+				
+				// Find all queens on the board and place them on the GUI
+				for (int row = 0; row < 10; row++) {
+						for (int col = 0; col < 10; col++) {
+								int pieceType = gameBoard[row][col];
+								
+								// If there's a queen (white=1 or black=2), place it on the GUI
+								if (pieceType == 1 || pieceType == 2) {
+										// Create a pseudo-move: queen appears at its position
+										ArrayList<Integer> queenPos = new ArrayList<>(Arrays.asList(row + 1, col + 1));
+										
+										Map<String, Object> placement = new HashMap<>();
+										placement.put(AmazonsGameMessage.QUEEN_POS_CURR, queenPos);
+										placement.put(AmazonsGameMessage.QUEEN_POS_NEXT, queenPos);
+										placement.put(AmazonsGameMessage.ARROW_POS, tempArrowPos);
+										
+										getGameGUI().updateGameState(placement);
+								}
+						}
+				}
+				
+				System.out.println(">>> [DEBUG] Initial pieces rendered.");
 		}
 
 		
