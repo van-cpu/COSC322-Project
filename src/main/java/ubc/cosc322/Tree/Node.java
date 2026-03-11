@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a node in the Search Tree for the Game of Amazons. Works with MonteCarloAlphaPrune
+ * Represents a node in the Search Tree for the Game of Amazons.
  */
 class Node {
     // The move that led to this state: {{qOldY, qOldX}, {qNewY, qNewX}, {arrowY, arrowX}}
@@ -14,6 +14,10 @@ class Node {
     
     Node parent;
     List<Node> children = new ArrayList<>();
+
+    // Lazy expansion: moves not yet turned into child nodes.
+    // Null means "not initialised yet"; empty means "fully expanded".
+    List<int[][]> untriedMoves = null;
     
     int winCount = 0;
     int visitCount = 0;
