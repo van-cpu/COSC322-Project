@@ -177,6 +177,11 @@ public class COSC322Test extends GamePlayer{
 
 						printGameBoard();
 						getGameGUI().setGameState(initialBoardArray);
+						
+						// Update the GUI to actually render the pieces on the board
+						Map<String, Object> guiUpdate = new HashMap<>();
+						guiUpdate.put(AmazonsGameMessage.GAME_STATE, initialBoardArray);
+						getGameGUI().updateGameState(guiUpdate);
 				} else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
 						getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
