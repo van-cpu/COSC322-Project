@@ -234,7 +234,7 @@ private int[][] applyMove(int[][] gameBoard, int[][] move) {
 
   private List<int[][]> generatePossibleMoves(boolean isWhite, int[][] gameBoard) {
     List<int[][]> moves = new ArrayList<>();
-    int qType = isWhite ? 2 : 1;
+    int qType = isWhite ? 1 : 2;
     for (int i = 0; i < 10; i++) {
       for (int j = 0; j < 10; j++) {
         if (gameBoard[i][j] == qType) {
