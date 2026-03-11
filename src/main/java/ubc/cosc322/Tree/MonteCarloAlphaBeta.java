@@ -9,7 +9,7 @@ import java.util.*;
  */
 public class MonteCarloAlphaBeta {
   private final Random random = new Random();
-  private final int SIMULATION_LIMIT = 5000;
+  private final int SIMULATION_LIMIT = 1000; // Reduced from 5000 to prevent OutOfMemoryError
   private final double EXPLORATION_CONSTANT = Math.sqrt(2);
   private static final int BOUND = 10;
   

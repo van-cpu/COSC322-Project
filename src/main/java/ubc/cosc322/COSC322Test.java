@@ -77,21 +77,14 @@ public class COSC322Test extends GamePlayer{
 				List<Room> rooms = gameClient.getRoomList();
 				System.out.println("Available rooms:");
 				
-				// boolean joined = false;
-				// for(Room r : rooms) {
-				// 		if(r != null) {
-				// 				System.out.println("- " + r.getName() + " | ID: " + r.getId() + " | Users: " + r.getUserList().size());
-								
-				// 				// 2. Automated Host-finding Logic
-				// 				// If we find a room with 1 person, we join it immediately
-				// 				if(!joined && r.getUserList().size() == 1) {
-				// 						System.out.println(">>> [AUTO-JOIN] Found host in: " + r.getName() + " (ID: " + r.getId() + "). Joining...");
-				// 						gameClient.joinRoom(r.getName());
-				// 						joined = true;
-				// 				}
-				// 		}
-				// }
+				// Print rooms to console for debugging
+				for(Room r : rooms) {
+						if(r != null) {
+								System.out.println("- " + r.getName() + " | ID: " + r.getId() + " | Users: " + r.getUserList().size());
+						}
+				}
 				
+				// Pass room info to GUI
 				if(gamegui != null) {
 						gamegui.setRoomInformation(rooms);
 				}
@@ -171,9 +164,6 @@ public class COSC322Test extends GamePlayer{
 
 						printGameBoard();
 						getGameGUI().setGameState(initialBoardArray);
-						
-						// Manually render initial pieces on the GUI
-						renderInitialPieces();
 				} else if(messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
 						getGameGUI().updateGameState(msgDetails);
 						updateGameBoard(msgDetails);
@@ -280,54 +270,6 @@ public class COSC322Test extends GamePlayer{
 
 			// Place the arrow, arrow has value of 3 as always
 			gameBoard[arrowY][arrowX] = 3;
-		}
-
-		/**
-		 * Render initial pieces on the GUI board by simulating piece placements
-		 * This is needed because setGameState() alone doesn't render the pieces visually
-		 */
-		private void renderInitialPieces() {
-				if (gameBoard == null) return;
-				
-				System.out.println(">>> [DEBUG] Rendering initial pieces on GUI...");
-				
-				// Find an empty cell to place temporary arrows
-				ArrayList<Integer> tempArrowPos = null;
-				for (int row = 0; row < 10 && tempArrowPos == null; row++) {
-						for (int col = 0; col < 10; col++) {
-								if (gameBoard[row][col] == 0) {
-										tempArrowPos = new ArrayList<>(Arrays.asList(row + 1, col + 1));
-										break;
-								}
-						}
-				}
-				
-				if (tempArrowPos == null) {
-						// Fallback to center if no empty cell (shouldn't happen)
-						tempArrowPos = new ArrayList<>(Arrays.asList(5, 5));
-				}
-				
-				// Find all queens on the board and place them on the GUI
-				for (int row = 0; row < 10; row++) {
-						for (int col = 0; col < 10; col++) {
-								int pieceType = gameBoard[row][col];
-								
-								// If there's a queen (white=1 or black=2), place it on the GUI
-								if (pieceType == 1 || pieceType == 2) {
-										// Create a pseudo-move: queen appears at its position
-										ArrayList<Integer> queenPos = new ArrayList<>(Arrays.asList(row + 1, col + 1));
-										
-										Map<String, Object> placement = new HashMap<>();
-										placement.put(AmazonsGameMessage.QUEEN_POS_CURR, queenPos);
-										placement.put(AmazonsGameMessage.QUEEN_POS_NEXT, queenPos);
-										placement.put(AmazonsGameMessage.ARROW_POS, tempArrowPos);
-										
-										getGameGUI().updateGameState(placement);
-								}
-						}
-				}
-				
-				System.out.println(">>> [DEBUG] Initial pieces rendered.");
 		}
 
 		
