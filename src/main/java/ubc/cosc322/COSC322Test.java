@@ -38,6 +38,14 @@ public class COSC322Test extends GamePlayer {
     private int[][] gameBoard    = null;
     private boolean gameOver     = false;
 
+    /**
+     * Tracks the last move WE sent so we can recognise its server echo.
+     * Format: {oldRow, oldCol, newRow, newCol, arrRow, arrCol} (1-based).
+     * When GAME_ACTION_MOVE arrives carrying this exact move, it is our own
+     * echo — we already applied it locally so we skip updateGameBoard().
+     */
+    private int[] myLastMove = null;
+
     // ── Entry point ───────────────────────────────────────────────────────────
 
     public static void main(String[] args) {
@@ -89,6 +97,7 @@ public class COSC322Test extends GamePlayer {
         // 2. Game start — determine colour, Black moves immediately
         } else if (messageType.equals(GameMessage.GAME_ACTION_START)) {
             gameOver     = false;
+            myLastMove   = null;
             isWhiteQueen = msgDetails.get(AmazonsGameMessage.PLAYER_WHITE)
                                      .equals(getGameClient().getUserName());
             System.out.println("Game started. Playing as "
@@ -103,12 +112,21 @@ public class COSC322Test extends GamePlayer {
                 }
             }
 
-        // 3. Opponent moved — apply their move, then respond
+        // 3. Incoming move — either opponent's move OR echo of our own move
         } else if (messageType.equals(GameMessage.GAME_ACTION_MOVE)) {
             getGameGUI().updateGameState(msgDetails);
-            updateGameBoard(msgDetails);   // keep our local board in sync
-            printGameBoard();
-            if (!gameOver) makeBestMove();
+
+            if (isOurOwnEcho(msgDetails)) {
+                // This is the server echoing back a move we already applied locally.
+                // The board is already correct — just clear the echo tracker.
+                System.out.println("> Skipping board update (own move echo).");
+                myLastMove = null;
+            } else {
+                // Genuine opponent move — apply it and respond.
+                updateGameBoard(msgDetails);
+                printGameBoard();
+                if (!gameOver) makeBestMove();
+            }
 
         } else {
             return false;
@@ -153,6 +171,9 @@ public class COSC322Test extends GamePlayer {
             getGameGUI().updateGameState(msg);
             updateGameBoard(msg);
 
+            // Remember this move so we can ignore its server echo
+            myLastMove = new int[]{oldRow, oldCol, newRow, newCol, arrRow, arrCol};
+
             System.out.println("Move successfully committed to server: " + msg);
 
         } else {
@@ -163,6 +184,31 @@ public class COSC322Test extends GamePlayer {
             System.out.println("  WINNER: " + (isWhiteQueen ? "BLACK" : "WHITE"));
             System.out.println("==============================================");
         }
+    }
+
+    // ── Echo detection ────────────────────────────────────────────────────────
+
+    /**
+     * Returns true if the incoming GAME_ACTION_MOVE matches the last move we sent.
+     * Compares all six coordinates (1-based): oldRow, oldCol, newRow, newCol, arrRow, arrCol.
+     */
+    private boolean isOurOwnEcho(Map<String, Object> msgDetails) {
+        if (myLastMove == null) return false;
+        ArrayList<Integer> qOld = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_CURR);
+        ArrayList<Integer> qNew = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.QUEEN_POS_NEXT);
+        ArrayList<Integer> arr  = (ArrayList<Integer>) msgDetails.get(AmazonsGameMessage.ARROW_POS);
+        if (qOld == null || qNew == null || arr == null) return false;
+        boolean match = qOld.get(0).equals(myLastMove[0]) && qOld.get(1).equals(myLastMove[1])
+                     && qNew.get(0).equals(myLastMove[2]) && qNew.get(1).equals(myLastMove[3])
+                     && arr.get(0).equals(myLastMove[4])  && arr.get(1).equals(myLastMove[5]);
+        System.out.println("> Echo check: incoming=["
+            + qOld.get(0) + "," + qOld.get(1) + "->" + qNew.get(0) + "," + qNew.get(1)
+            + " arr:" + arr.get(0) + "," + arr.get(1) + "] "
+            + "myLastMove=[" + myLastMove[0] + "," + myLastMove[1]
+            + "->" + myLastMove[2] + "," + myLastMove[3]
+            + " arr:" + myLastMove[4] + "," + myLastMove[5] + "] "
+            + "match=" + match);
+        return match;
     }
 
     // ── Apply any move (ours or opponent's) to the local board ───────────────
